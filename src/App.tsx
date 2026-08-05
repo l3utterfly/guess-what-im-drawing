@@ -1,121 +1,120 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import { DrawingCanvas, type CanvasHandle } from './game/DrawingCanvas'
+import { GuesserBar } from './game/GuesserBar'
+import { BrushBar } from './game/BrushBar'
+import { guessers as initialGuessers, round, sampleGuesses } from './game/mockData'
+import type { Guesser } from './game/types'
+
+const COLORS = [
+  '#1e1e2e', // ink
+  '#ffffff', // eraser (canvas is white)
+  '#ff5d8f', // pink
+  '#ff8f3f', // orange
+  '#ffd23f', // yellow
+  '#22c55e', // green
+  '#38bdf8', // sky
+  '#6366f1', // indigo
+  '#a855f7', // purple
+  '#8b5e3c', // brown
+]
+
+const SIZES = [4, 10, 18, 30]
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [color, setColor] = useState(COLORS[0])
+  const [size, setSize] = useState(SIZES[1])
+  const [hint, setHint] = useState('')
+  const [showPrompt, setShowPrompt] = useState(true)
+  const [guessers, setGuessers] = useState<Guesser[]>(initialGuessers)
+  const canvasRef = useRef<CanvasHandle>(null)
+
+  // UI-only flourish: randomly pop guess bubbles above the guessers so the
+  // chat-bubble feature is visible without a backend.
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setGuessers((prev) =>
+        prev.map((g) =>
+          Math.random() < 0.4
+            ? { ...g, guess: sampleGuesses[Math.floor(Math.random() * sampleGuesses.length)] }
+            : Math.random() < 0.5
+              ? { ...g, guess: null }
+              : g,
+        ),
+      )
+    }, 1600)
+    return () => clearInterval(timer)
+  }, [])
+
+  const sendHint = () => {
+    if (!hint.trim()) return
+    // UI only — no network yet.
+    setHint('')
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <div className="phone">
+        {/* Topic — visible to everyone */}
+        <header className="topic">
+          <span className="topic-label">Topic</span>
+          <span className="topic-value">
+            <span className="topic-emoji">{round.topicEmoji}</span>
+            {round.topic}
+          </span>
+        </header>
 
-      <div className="ticks"></div>
+        {/* Guessers with live chat bubbles */}
+        <GuesserBar guessers={guessers} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {/* The drawing surface */}
+        <main className="canvas-wrap">
+          <DrawingCanvas ref={canvasRef} color={color} size={size} />
+        </main>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        {/* Secret prompt — only the drawer sees this */}
+        <div className={'secret' + (showPrompt ? '' : ' secret--hidden')}>
+          <div className="secret-left">
+            <span className="secret-label">🤫 You're drawing</span>
+            <span className="secret-word">{showPrompt ? round.prompt : '• • • • •'}</span>
+          </div>
+          <button
+            type="button"
+            className="secret-toggle"
+            onClick={() => setShowPrompt((s) => !s)}
+          >
+            {showPrompt ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        {/* Brush colour + size */}
+        <BrushBar
+          colors={COLORS}
+          sizes={SIZES}
+          activeColor={color}
+          activeSize={size}
+          onColor={setColor}
+          onSize={setSize}
+          onClear={() => canvasRef.current?.clear()}
+        />
+
+        {/* Hint message box */}
+        <div className="hintbox">
+          <input
+            className="hint-input"
+            type="text"
+            placeholder="Send a hint to the guessers…"
+            value={hint}
+            maxLength={80}
+            onChange={(e) => setHint(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendHint()}
+          />
+          <button type="button" className="hint-send" onClick={sendHint} aria-label="Send hint">
+            ➤
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
