@@ -3,8 +3,15 @@ import './App.css'
 import { DrawingCanvas, type CanvasHandle } from './game/DrawingCanvas'
 import { GuesserBar } from './game/GuesserBar'
 import { BrushBar } from './game/BrushBar'
-import { guessers as initialGuessers, round, sampleGuesses } from './game/mockData'
-import type { Guesser } from './game/types'
+import { GameSetupModal } from './game/GameSetupModal'
+import {
+  guessers as initialGuessers,
+  playerOptions,
+  round as initialRound,
+  sampleGuesses,
+  topicOptions,
+} from './game/mockData'
+import type { Guesser, TopicOption } from './game/types'
 
 const COLORS = [
   '#1e1e2e', // ink
@@ -27,6 +34,8 @@ function App() {
   const [hint, setHint] = useState('')
   const [showPrompt, setShowPrompt] = useState(true)
   const [guessers, setGuessers] = useState<Guesser[]>(initialGuessers)
+  const [round, setRound] = useState(initialRound)
+  const [showSetup, setShowSetup] = useState(true)
   const canvasRef = useRef<CanvasHandle>(null)
 
   // UI-only flourish: randomly pop guess bubbles above the guessers so the
@@ -52,9 +61,15 @@ function App() {
     setHint('')
   }
 
+  const startGame = (players: Guesser[], topic: TopicOption) => {
+    setGuessers(players)
+    setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: topic.prompt })
+    setShowSetup(false)
+  }
+
   return (
     <div className="app">
-      <div className="phone">
+      <div className="phone" aria-hidden={showSetup || undefined}>
         {/* Topic — visible to everyone */}
         <header className="topic">
           <span className="topic-label">Topic</span>
@@ -114,6 +129,9 @@ function App() {
           </button>
         </div>
       </div>
+      {showSetup && (
+        <GameSetupModal players={playerOptions} topics={topicOptions} onStart={startGame} />
+      )}
     </div>
   )
 }

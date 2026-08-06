@@ -15,3 +15,9 @@ export interface Round {
   /** Exact word to draw — only the drawer (this screen) sees it. */
   prompt: string
 }
+
+export interface TopicOption extends Round {
+  id: string
+  description: string
+  color: string
+}
