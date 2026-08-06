@@ -1001,6 +1001,24 @@
   box-shadow: 0 8px 24px color-mix(in srgb, var(--player-color) 24%, transparent);
 }
 
+.player-picker-state {
+  grid-column: 1 / -1;
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 1px dashed #d9d6e5;
+  border-radius: 18px;
+  color: #77758a;
+  text-align: center;
+}
+
+.player-picker-state--error {
+  border-color: #fecdd3;
+  color: #be123c;
+  background: #fff1f2;
+}
+
 .player-option-info {
   min-width: 0;
   display: flex;

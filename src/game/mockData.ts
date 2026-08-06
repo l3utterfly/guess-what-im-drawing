@@ -1,25 +1,10 @@
-import type { Guesser, Round, TopicOption } from './types'
+import type { Round, TopicOption } from './types'
 
 export const round: Round = {
   topic: 'Animals',
   topicEmoji: '🐾',
   prompt: 'Elephant',
 }
-
-export const guessers: Guesser[] = [
-  { id: 'maya', name: 'Maya', avatar: '🦊', color: '#ff5d8f', score: 0, guess: null },
-  { id: 'leo', name: 'Leo', avatar: '🐼', color: '#38bdf8', score: 0, guess: null },
-  { id: 'zoe', name: 'Zoe', avatar: '🐵', color: '#22c55e', score: 0, guess: null },
-  { id: 'kai', name: 'Kai', avatar: '🐰', color: '#a855f7', score: 0, guess: null },
-]
-
-export const playerOptions: Guesser[] = [
-  ...guessers,
-  { id: 'nova', name: 'Nova', avatar: '🐱', color: '#f59e0b', score: 0, guess: null },
-  { id: 'milo', name: 'Milo', avatar: '🐸', color: '#10b981', score: 0, guess: null },
-  { id: 'luna', name: 'Luna', avatar: '🦉', color: '#8b5cf6', score: 0, guess: null },
-  { id: 'ollie', name: 'Ollie', avatar: '🐨', color: '#f97316', score: 0, guess: null },
-]
 
 export const topicOptions: TopicOption[] = [
   {

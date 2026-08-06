@@ -4,12 +4,20 @@ import type { Guesser, TopicOption } from './types'
 interface Props {
   players: Guesser[]
   topics: TopicOption[]
+  charactersLoading: boolean
+  charactersError: string | null
   onStart: (players: Guesser[], topic: TopicOption) => void
 }
 
 const MAX_PLAYERS = 4
 
-export function GameSetupModal({ players, topics, onStart }: Props) {
+export function GameSetupModal({
+  players,
+  topics,
+  charactersLoading,
+  charactersError,
+  onStart,
+}: Props) {
   const [step, setStep] = useState<1 | 2>(1)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [selectedTopicId, setSelectedTopicId] = useState(topics[0]?.id ?? '')
@@ -110,7 +118,17 @@ export function GameSetupModal({ players, topics, onStart }: Props) {
               </div>
 
               <div className="player-picker" aria-label="Choose exactly four characters">
-                {players.map((player) => {
+                {charactersLoading && (
+                  <div className="player-picker-state" role="status">
+                    Loading your Layla characters…
+                  </div>
+                )}
+                {!charactersLoading && charactersError && (
+                  <div className="player-picker-state player-picker-state--error" role="alert">
+                    {charactersError}
+                  </div>
+                )}
+                {!charactersLoading && !charactersError && players.map((player) => {
                   const selectedIndex = selectedIds.indexOf(player.id)
                   const isSelected = selectedIndex !== -1
                   const isUnavailable = !isSelected && selectedIds.length === MAX_PLAYERS

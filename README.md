@@ -26,6 +26,10 @@ The current build simulates character speech so the game loop can be tested with
 
 The scoring and matching rules live in `src/game/gameLogic.ts`. The simulation uses those same rules rather than awarding points directly.
 
+## Layla characters
+
+The character picker loads its roster through `@layla-network/sdk`. During local Vite development, the app installs the SDK's browser mock before rendering and seeds it with the eight demo characters. Production builds skip the mock and read characters from the Layla WebView host.
+
 ## Development
 
 ```bash

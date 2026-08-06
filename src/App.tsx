@@ -6,8 +6,6 @@ import { BrushBar } from './game/BrushBar'
 import { GameSetupModal } from './game/GameSetupModal'
 import { RoundCompleteModal } from './game/RoundCompleteModal'
 import {
-  guessers as initialGuessers,
-  playerOptions,
   round as initialRound,
   sampleIncorrectGuesses,
   topicOptions,
@@ -20,6 +18,7 @@ import {
   WINNING_SCORE,
 } from './game/gameLogic'
 import type { Guesser, TopicOption } from './game/types'
+import { listGuessers } from './layla/client'
 
 const COLORS = [
   '#1e1e2e', // ink
@@ -56,7 +55,7 @@ const freshGuessers = (guessers: Guesser[]) =>
   guessers.map((guesser) => ({ ...guesser, score: 0, guess: null }))
 
 const initialGameState: GameState = {
-  guessers: freshGuessers(initialGuessers),
+  guessers: [],
   correctGuesserIds: [],
   winnerId: null,
   remainingSeconds: ROUND_DURATION_SECONDS,
@@ -129,6 +128,9 @@ function App() {
   const [selectedTopic, setSelectedTopic] = useState<TopicOption>(topicOptions[0])
   const [roundNumber, setRoundNumber] = useState(1)
   const [showSetup, setShowSetup] = useState(true)
+  const [playerOptions, setPlayerOptions] = useState<Guesser[]>([])
+  const [charactersLoading, setCharactersLoading] = useState(true)
+  const [charactersError, setCharactersError] = useState<string | null>(null)
   const canvasRef = useRef<CanvasHandle>(null)
   const winner = game.guessers.find((guesser) => guesser.id === game.winnerId) ?? null
   const roundComplete = game.roundEnded
@@ -138,6 +140,32 @@ function App() {
   const timerMinutes = Math.floor(game.remainingSeconds / 60)
   const timerSeconds = game.remainingSeconds % 60
   const formattedTime = `${timerMinutes}:${timerSeconds.toString().padStart(2, '0')}`
+
+  useEffect(() => {
+    let active = true
+
+    void listGuessers()
+      .then((characters) => {
+        if (!active) return
+        setPlayerOptions(characters)
+        setCharactersError(
+          characters.length < 4 ? 'Layla needs at least four characters to start a game.' : null,
+        )
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setCharactersError(
+          error instanceof Error ? error.message : 'Could not load characters from Layla.',
+        )
+      })
+      .finally(() => {
+        if (active) setCharactersLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (showSetup || roundComplete) return
@@ -312,7 +340,13 @@ function App() {
         </div>
       </div>
       {showSetup && (
-        <GameSetupModal players={playerOptions} topics={topicOptions} onStart={startGame} />
+        <GameSetupModal
+          players={playerOptions}
+          topics={topicOptions}
+          charactersLoading={charactersLoading}
+          charactersError={charactersError}
+          onStart={startGame}
+        />
       )}
       {roundComplete && (
         <RoundCompleteModal
