@@ -25,7 +25,7 @@ A local React and TypeScript drawing game. Choose four characters and a topic, d
 
 Every character turn contains exactly two messages: a system prompt with character-card details, topic, prior incorrect guesses, and user hints; and a user message containing a base64 PNG screenshot of the latest canvas. The provider-independent builder lives in `src/prompting/guessPrompt.ts`, and the complete request is logged to the browser console for prompt tuning before it is sent.
 
-Once the first brush stroke starts the round, eligible characters take turns in roster order. Each request is sent through `@layla-network/sdk` and the next character waits until the current completion finishes. During local browser development, the SDK mock forwards the same multimodal request to the configured LM Studio endpoint.
+Once the first brush stroke starts the round, the next eligible character is chosen randomly, without giving the same character two consecutive turns when another guesser is available. Each request is sent through `@layla-network/sdk` and the next character waits until the current completion finishes. During local browser development, the SDK mock forwards the same multimodal request to the configured LM Studio endpoint.
 
 The scoring and matching rules live in `src/game/gameLogic.ts`. The simulation uses those same rules rather than awarding points directly.
 

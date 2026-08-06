@@ -1,0 +1,7 @@
+{
+  "title": "Guess What I'm Drawing",
+  "tagline": "Draw a prompt and watch your characters race to guess it.",
+  "description": "Choose four Layla characters and a topic, then draw the secret prompt while they race to identify it. Correct guesses earn points, and the first character to reach 30 points wins.",
+  "iconUri": "icon.jpg",
+  "backgroundImgUri": "bg.jpg"
+}

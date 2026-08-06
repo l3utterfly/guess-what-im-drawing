@@ -42,7 +42,7 @@ interface GameState {
   correctGuesserIds: string[]
   guessAttempts: GuessAttempt[]
   hints: string[]
-  nextGuesserIndex: number
+  lastGuesserId: string | null
   winnerId: string | null
   remainingSeconds: number
   roundEndsAt: number
@@ -67,7 +67,7 @@ const initialGameState: GameState = {
   correctGuesserIds: [],
   guessAttempts: [],
   hints: [],
-  nextGuesserIndex: 0,
+  lastGuesserId: null,
   winnerId: null,
   remainingSeconds: ROUND_DURATION_SECONDS,
   roundEndsAt: 0,
@@ -83,7 +83,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         correctGuesserIds: [],
         guessAttempts: [],
         hints: [],
-        nextGuesserIndex: 0,
+        lastGuesserId: null,
         winnerId: null,
         remainingSeconds: ROUND_DURATION_SECONDS,
         roundEndsAt: 0,
@@ -110,8 +110,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         action.guess,
         action.prompt,
       )
-      const speakerIndex = state.guessers.findIndex((guesser) => guesser.id === action.guesserId)
-      const speaker = state.guessers[speakerIndex]
+      const speaker = state.guessers.find((guesser) => guesser.id === action.guesserId)
       if (!speaker) return state
 
       const correct =
@@ -130,8 +129,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             correct,
           },
         ],
-        nextGuesserIndex:
-          state.guessers.length > 0 ? (speakerIndex + 1) % state.guessers.length : 0,
+        lastGuesserId: speaker.id,
         winnerId: state.winnerId ?? outcome.winnerId,
         roundEnded: outcome.correctGuesserIds.length === outcome.guessers.length,
       }
@@ -157,7 +155,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         correctGuesserIds: [],
         guessAttempts: [],
         hints: [],
-        nextGuesserIndex: 0,
+        lastGuesserId: null,
         remainingSeconds: ROUND_DURATION_SECONDS,
         roundEndsAt: 0,
         timerStarted: false,
@@ -168,16 +166,21 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-function getNextEligibleGuesser(
+function getRandomEligibleGuesser(
   guessers: Guesser[],
   correctGuesserIds: string[],
-  startIndex: number,
+  lastGuesserId: string | null,
 ): Guesser | null {
-  for (let offset = 0; offset < guessers.length; offset += 1) {
-    const guesser = guessers[(startIndex + offset) % guessers.length]
-    if (guesser && !correctGuesserIds.includes(guesser.id)) return guesser
-  }
-  return null
+  const eligibleGuessers = guessers.filter(
+    (guesser) => !correctGuesserIds.includes(guesser.id),
+  )
+  if (eligibleGuessers.length === 0) return null
+
+  const randomPool =
+    eligibleGuessers.length > 1
+      ? eligibleGuessers.filter((guesser) => guesser.id !== lastGuesserId)
+      : eligibleGuessers
+  return randomPool[Math.floor(Math.random() * randomPool.length)] ?? null
 }
 
 function App() {
@@ -241,18 +244,18 @@ function App() {
     return () => clearInterval(timer)
   }, [game.timerStarted, roundComplete, showSetup])
 
-  // Characters take turns in roster order. A turn does not advance until the
-  // current character's on-device multimodal completion has finished.
+  // An eligible character is chosen randomly for each turn. A turn does not
+  // advance until the current character's multimodal completion has finished.
   useEffect(() => {
     if (showSetup || roundComplete || !game.timerStarted || guessingError) return
 
     const controller = new AbortController()
     let requestStarted = false
     const timer = setTimeout(() => {
-      const speaker = getNextEligibleGuesser(
+      const speaker = getRandomEligibleGuesser(
         game.guessers,
         game.correctGuesserIds,
-        game.nextGuesserIndex,
+        game.lastGuesserId,
       )
       if (!speaker) return
 
@@ -303,7 +306,7 @@ function App() {
     game.guessAttempts,
     game.guessers,
     game.hints,
-    game.nextGuesserIndex,
+    game.lastGuesserId,
     game.timerStarted,
     round.prompt,
     round.topic,
