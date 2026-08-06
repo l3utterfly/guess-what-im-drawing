@@ -175,10 +175,15 @@
 
 /* ---------- Guessers ---------- */
 .guessers {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: end;
+}
+.guesser-roster {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-items: start;
 }
 .guesser {
   display: flex;
@@ -188,21 +193,18 @@
   min-width: 0;
 }
 .guesser-bubble-slot {
-  height: 104px;
+  height: 62px;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
   width: 100%;
+}
+.guesser-bubble-slot--empty {
+  height: 0;
 }
 .chat-bubble {
   position: relative;
   z-index: 2;
-  width: max-content;
-  max-width: min(190px, calc(100vw - 32px));
-  max-height: 96px;
-  padding: 8px 10px;
-  overflow-x: hidden;
-  overflow-y: auto;
+  width: 100%;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.3;
@@ -212,6 +214,14 @@
   border-radius: 12px;
   box-shadow: 0 6px 14px -8px rgba(0, 0, 0, 0.4);
   animation: pop 0.22s ease-out;
+  transform-origin: var(--bubble-tail-position) 100%;
+}
+.chat-bubble-content {
+  max-height: 52px;
+  padding: 8px 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 10px;
   overflow-wrap: anywhere;
   white-space: normal;
 }
@@ -219,7 +229,7 @@
   content: '';
   position: absolute;
   bottom: -6px;
-  left: 50%;
+  left: var(--bubble-tail-position);
   transform: translateX(-50%) rotate(45deg);
   width: 8px;
   height: 8px;
@@ -251,11 +261,23 @@
   place-items: center;
   background: #fff;
 }
+.avatar-image,
+.standing-avatar img {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  object-fit: cover;
+}
 .avatar--correct {
   transform: translateY(-2px);
 }
 .correct-badge {
   position: absolute;
+  z-index: 2;
   right: -5px;
   bottom: -3px;
   width: 19px;
@@ -433,11 +455,13 @@
 }
 
 .standing-avatar {
+  position: relative;
   width: 38px;
   height: 38px;
   display: grid;
   place-items: center;
   border-radius: 50%;
+  overflow: hidden;
   font-size: 22px;
   background: #fff;
 }
@@ -989,7 +1013,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 18px 12px 16px;
+  padding: 10px 10px 15px;
   border-radius: 18px;
   text-align: center;
 }
@@ -1007,16 +1031,32 @@
 }
 
 .player-option-avatar {
-  width: 84px;
-  height: 84px;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
   display: grid;
   place-items: center;
   margin-bottom: 12px;
   border: 3px solid var(--player-color);
-  border-radius: 50%;
-  font-size: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: clamp(44px, 6vw, 68px);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--player-color) 24%, transparent);
+}
+
+.player-option-avatar img,
+.setup-mini-crew img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.player-avatar-fallback {
+  line-height: 1;
 }
 
 .player-picker-state {
@@ -1158,6 +1198,7 @@
 }
 
 .setup-mini-crew > span {
+  position: relative;
   width: 30px;
   height: 30px;
   display: grid;
@@ -1165,6 +1206,7 @@
   margin-left: -6px;
   border: 2px solid var(--player-color);
   border-radius: 50%;
+  overflow: hidden;
   font-size: 16px;
   background: #fff;
 }
@@ -1311,15 +1353,13 @@
   }
 
   .player-option {
-    min-height: 148px;
-    padding: 14px 10px 12px;
+    padding: 8px 8px 12px;
   }
 
   .player-option-avatar {
-    width: 68px;
-    height: 68px;
-    margin-bottom: 9px;
-    font-size: 36px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    font-size: clamp(38px, 14vw, 58px);
   }
 
   .topic-picker {

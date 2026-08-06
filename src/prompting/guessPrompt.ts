@@ -115,19 +115,3 @@ export function buildGuessPrompt(input: BuildGuessPromptInput): GuessPromptReque
     ],
   }
 }
-
-/** Logs the full request for prompt tuning before it is sent to Layla. */
-export function logGuessPrompt(characterName: string, request: GuessPromptRequest): void {
-  console.groupCollapsed(`[Guess What I'm Drawing] LLM prompt for ${characterName}`)
-  console.log('System prompt:\n' + request.messages[0].content)
-  console.log('User image message:', request.messages[1])
-  console.log('Complete request:', request)
-  console.groupEnd()
-}
-
-/** Logs the final visible completion returned for a character's turn. */
-export function logGuessResponse(characterName: string, response: string): void {
-  console.groupCollapsed(`[Guess What I'm Drawing] LLM response from ${characterName}`)
-  console.log(response)
-  console.groupEnd()
-}

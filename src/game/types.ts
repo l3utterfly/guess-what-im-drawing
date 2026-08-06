@@ -3,7 +3,8 @@ import type { CharacterPromptProfile } from '../prompting'
 export interface Guesser {
   id: string
   name: string
-  avatar: string // emoji
+  avatar: string // emoji / initial used while a profile image is unavailable
+  profileImage: string | null
   color: string // accent color for avatar ring / bubble
   promptProfile: CharacterPromptProfile
   score: number

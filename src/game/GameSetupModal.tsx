@@ -145,7 +145,18 @@ export function GameSetupModal({
                         className="player-option-avatar"
                         style={{ '--player-color': player.color } as React.CSSProperties}
                       >
-                        {player.avatar}
+                        <span className="player-avatar-fallback" aria-hidden="true">
+                          {player.avatar}
+                        </span>
+                        {player.profileImage && (
+                          <img
+                            src={player.profileImage}
+                            alt=""
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        )}
                       </span>
                       <span className="player-option-info">
                         <strong>{player.name}</strong>
@@ -207,7 +218,18 @@ export function GameSetupModal({
               <div className="setup-mini-crew" aria-label="Your selected players">
                 {selectedPlayers.map((player) => (
                   <span key={player.id} style={{ '--player-color': player.color } as React.CSSProperties}>
-                    {player.avatar}
+                    <span className="player-avatar-fallback" aria-hidden="true">
+                      {player.avatar}
+                    </span>
+                    {player.profileImage && (
+                      <img
+                        src={player.profileImage}
+                        alt=""
+                        onError={(event) => {
+                          event.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    )}
                   </span>
                 ))}
                 <small>Your crew is ready</small>

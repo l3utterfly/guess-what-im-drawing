@@ -29,6 +29,7 @@ function toGuesser(character: LaylaCharacter, index: number): Guesser {
       typeof gameMetadata.avatar === 'string'
         ? gameMetadata.avatar
         : name.trim().charAt(0).toUpperCase() || '?',
+    profileImage: null,
     color:
       typeof gameMetadata.color === 'string'
         ? gameMetadata.color
@@ -47,6 +48,25 @@ function toGuesser(character: LaylaCharacter, index: number): Guesser {
 export async function listGuessers(): Promise<Guesser[]> {
   const characters = await layla.characters.list(0, 100)
   return characters.map(toGuesser)
+}
+
+export async function loadGuesserProfileImages(
+  guessers: Guesser[],
+  onProfileImage: (guesserId: string, profileImage: string | null) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  await Promise.all(
+    guessers.map(async (guesser) => {
+      try {
+        const profileImage = await layla.characters.getImage(guesser.id, { signal })
+        onProfileImage(guesser.id, profileImage)
+      } catch (error) {
+        if (signal?.aborted) return
+        console.warn(`Could not load the profile image for ${guesser.name}.`, error)
+        onProfileImage(guesser.id, null)
+      }
+    }),
+  )
 }
 
 export { layla }

@@ -14,13 +14,13 @@ import {
   WINNING_SCORE,
 } from './game/gameLogic'
 import type { Guesser, GuessAttempt, TopicOption } from './game/types'
-import { listGuessers } from './layla/client'
+import { listGuessers, loadGuesserProfileImages } from './layla/client'
 import {
   describeGuessRequestError,
   isGuessRequestAborted,
   requestCharacterGuess,
 } from './layla/guessing'
-import { buildGuessPrompt, logGuessPrompt, logGuessResponse } from './prompting'
+import { buildGuessPrompt } from './prompting'
 
 const COLORS = [
   '#1e1e2e', // ink
@@ -200,10 +200,16 @@ function App() {
   const [activeGuesserId, setActiveGuesserId] = useState<string | null>(null)
   const [guessingError, setGuessingError] = useState<string | null>(null)
   const canvasRef = useRef<CanvasHandle>(null)
-  const winner = game.guessers.find((guesser) => guesser.id === game.winnerId) ?? null
+  const displayGuessers = game.guessers.map((guesser) => {
+    const loadedProfileImage = playerOptions.find((player) => player.id === guesser.id)?.profileImage
+    return loadedProfileImage && loadedProfileImage !== guesser.profileImage
+      ? { ...guesser, profileImage: loadedProfileImage }
+      : guesser
+  })
+  const winner = displayGuessers.find((guesser) => guesser.id === game.winnerId) ?? null
   const roundComplete = game.roundEnded
   const roundPlacements = game.correctGuesserIds
-    .map((id) => game.guessers.find((guesser) => guesser.id === id))
+    .map((id) => displayGuessers.find((guesser) => guesser.id === id))
     .filter((guesser): guesser is Guesser => Boolean(guesser))
   const timerMinutes = Math.floor(game.remainingSeconds / 60)
   const timerSeconds = game.remainingSeconds % 60
@@ -211,6 +217,7 @@ function App() {
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
 
     void listGuessers()
       .then((characters) => {
@@ -219,19 +226,32 @@ function App() {
         setCharactersError(
           characters.length < 4 ? 'Layla needs at least four characters to start a game.' : null,
         )
+        setCharactersLoading(false)
+
+        return loadGuesserProfileImages(
+          characters,
+          (guesserId, profileImage) => {
+            if (!active) return
+            setPlayerOptions((current) =>
+              current.map((guesser) =>
+                guesser.id === guesserId ? { ...guesser, profileImage } : guesser,
+              ),
+            )
+          },
+          controller.signal,
+        )
       })
       .catch((error: unknown) => {
         if (!active) return
         setCharactersError(
           error instanceof Error ? error.message : 'Could not load characters from Layla.',
         )
-      })
-      .finally(() => {
-        if (active) setCharactersLoading(false)
+        setCharactersLoading(false)
       })
 
     return () => {
       active = false
+      controller.abort()
     }
   }, [])
 
@@ -274,13 +294,10 @@ function App() {
         hints: game.hints,
         canvasImageDataUrl,
       })
-      logGuessPrompt(speaker.name, promptRequest)
-
       requestStarted = true
       setActiveGuesserId(speaker.id)
       void requestCharacterGuess(promptRequest, controller.signal)
         .then((guess) => {
-          logGuessResponse(speaker.name, guess)
           dispatchGame({
             type: 'speak',
             guesserId: speaker.id,
@@ -405,9 +422,10 @@ function App() {
 
         {/* Guessers with live chat bubbles */}
         <GuesserBar
-          guessers={game.guessers}
+          guessers={displayGuessers}
           correctGuesserIds={game.correctGuesserIds}
           activeGuesserId={activeGuesserId}
+          lastGuesserId={game.lastGuesserId}
         />
 
         <div
@@ -504,7 +522,7 @@ function App() {
           roundNumber={roundNumber}
           prompt={round.prompt}
           placements={roundPlacements}
-          guessers={game.guessers}
+          guessers={displayGuessers}
           timedOut={game.remainingSeconds === 0}
           gameWinner={winner}
           onNextRound={startNextRound}

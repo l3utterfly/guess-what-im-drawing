@@ -82,7 +82,16 @@ export function RoundCompleteModal({
                   style={{ boxShadow: `0 0 0 3px ${guesser.color}` }}
                   aria-hidden="true"
                 >
-                  {guesser.avatar}
+                  <span>{guesser.avatar}</span>
+                  {guesser.profileImage && (
+                    <img
+                      src={guesser.profileImage}
+                      alt=""
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  )}
                 </span>
                 <span className="standing-player">
                   <strong>{guesser.name}</strong>

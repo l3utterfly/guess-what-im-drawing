@@ -1,8 +1,6 @@
 export {
   buildGuessPrompt,
   buildGuessSystemPrompt,
-  logGuessPrompt,
-  logGuessResponse,
   type BuildGuessPromptInput,
   type CharacterPromptProfile,
   type GuessImageMessage,

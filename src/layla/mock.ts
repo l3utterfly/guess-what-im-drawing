@@ -1,6 +1,7 @@
 import {
   installLaylaMock,
   makeMockCharacter,
+  type LaylaApiEvent_onError,
   type LaylaCharacter,
   type LaylaChatMessage,
 } from '@layla-network/sdk'
@@ -79,51 +80,73 @@ function readContentDelta(line: string): string | null {
   return typeof content === 'string' ? content : null
 }
 
+function describeLMStudioError(error: unknown): string {
+  if (error instanceof TypeError) {
+    return 'Could not connect to LM Studio at localhost:1234. Make sure LM Studio is running and its local server is started.'
+  }
+
+  if (error instanceof Error) return error.message
+  return 'LM Studio chat request failed.'
+}
+
+function emitLMStudioError(error: unknown): void {
+  const event: LaylaApiEvent_onError = {
+    event: 'on_error',
+    data: { message: describeLMStudioError(error) },
+  }
+
+  window.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(event) }))
+}
+
 async function* respondWithLMStudio(messages: LaylaChatMessage[]): AsyncGenerator<string> {
-  const response = await fetch(LM_STUDIO_CHAT_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ messages: messages.map(toLMStudioMessage), stream: true }),
-  })
-
-  if (!response.ok) {
-    const details = await response.text()
-    throw new Error(
-      `LM Studio chat request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
-    )
-  }
-
-  if (!response.body) {
-    throw new Error('LM Studio returned a chat response without a readable body')
-  }
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let finished = false
-
   try {
-    while (!finished) {
-      const result = await reader.read()
-      finished = result.done
-      buffer += decoder.decode(result.value, { stream: !finished })
+    const response = await fetch(LM_STUDIO_CHAT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ messages: messages.map(toLMStudioMessage), stream: true }),
+    })
 
-      const lines = buffer.split(/\r?\n/)
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const content = readContentDelta(line)
-        if (content) yield content
-      }
+    if (!response.ok) {
+      const details = await response.text()
+      throw new Error(
+        `LM Studio chat request failed (${response.status} ${response.statusText})${details ? `: ${details}` : ''}`,
+      )
     }
 
-    const trailingContent = readContentDelta(buffer)
-    if (trailingContent) yield trailingContent
-  } finally {
-    if (!finished) await reader.cancel()
-    reader.releaseLock()
+    if (!response.body) {
+      throw new Error('LM Studio returned a chat response without a readable body')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finished = false
+
+    try {
+      while (!finished) {
+        const result = await reader.read()
+        finished = result.done
+        buffer += decoder.decode(result.value, { stream: !finished })
+
+        const lines = buffer.split(/\r?\n/)
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          const content = readContentDelta(line)
+          if (content) yield content
+        }
+      }
+
+      const trailingContent = readContentDelta(buffer)
+      if (trailingContent) yield trailingContent
+    } finally {
+      if (!finished) await reader.cancel()
+      reader.releaseLock()
+    }
+  } catch (error) {
+    emitLMStudioError(error)
   }
 }
 

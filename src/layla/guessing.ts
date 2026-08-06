@@ -15,6 +15,7 @@ export async function requestCharacterGuess(
   // This assignment deliberately verifies that the provider-independent
   // prompt builder still matches the SDK's OpenAI-shaped message contract.
   const messages: ChatCompletionMessageParam[] = request.messages
+  console.log('[Guess What I\'m Drawing] System prompt:', request.messages[0].content)
   const completion = await layla.chat.completions.create({ messages, signal })
   const guess = completion.choices[0]?.message.content?.trim() ?? ''
 
