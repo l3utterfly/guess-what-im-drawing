@@ -116,7 +116,7 @@ export function buildGuessPrompt(input: BuildGuessPromptInput): GuessPromptReque
   }
 }
 
-/** Temporary integration point until the request is sent to Layla's chat API. */
+/** Logs the full request for prompt tuning before it is sent to Layla. */
 export function logGuessPrompt(characterName: string, request: GuessPromptRequest): void {
   console.groupCollapsed(`[Guess What I'm Drawing] LLM prompt for ${characterName}`)
   console.log('System prompt:\n' + request.messages[0].content)

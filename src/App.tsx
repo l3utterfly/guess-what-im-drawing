@@ -5,17 +5,20 @@ import { GuesserBar } from './game/GuesserBar'
 import { BrushBar } from './game/BrushBar'
 import { GameSetupModal } from './game/GameSetupModal'
 import { RoundCompleteModal } from './game/RoundCompleteModal'
-import { sampleIncorrectGuesses } from './game/mockData'
 import { defaultTopic, initialRound, topicOptions } from './game/topics'
 import {
   applyGuess,
-  CORRECT_GUESS_PROBABILITY,
   isCorrectGuess,
   ROUND_DURATION_SECONDS,
   WINNING_SCORE,
 } from './game/gameLogic'
 import type { Guesser, GuessAttempt, TopicOption } from './game/types'
 import { listGuessers } from './layla/client'
+import {
+  describeGuessRequestError,
+  isGuessRequestAborted,
+  requestCharacterGuess,
+} from './layla/guessing'
 import { buildGuessPrompt, logGuessPrompt } from './prompting'
 
 const COLORS = [
@@ -189,6 +192,8 @@ function App() {
   const [playerOptions, setPlayerOptions] = useState<Guesser[]>([])
   const [charactersLoading, setCharactersLoading] = useState(true)
   const [charactersError, setCharactersError] = useState<string | null>(null)
+  const [activeGuesserId, setActiveGuesserId] = useState<string | null>(null)
+  const [guessingError, setGuessingError] = useState<string | null>(null)
   const canvasRef = useRef<CanvasHandle>(null)
   const winner = game.guessers.find((guesser) => guesser.id === game.winnerId) ?? null
   const roundComplete = game.roundEnded
@@ -234,12 +239,13 @@ function App() {
     return () => clearInterval(timer)
   }, [game.timerStarted, roundComplete, showSetup])
 
-  // Temporary local simulation. Characters take turns in roster order. Each
-  // turn builds and logs the exact multimodal request before a mock guess is
-  // dispatched; the Layla chat API is intentionally not called yet.
+  // Characters take turns in roster order. A turn does not advance until the
+  // current character's on-device multimodal completion has finished.
   useEffect(() => {
-    if (showSetup || roundComplete || !game.timerStarted) return
+    if (showSetup || roundComplete || !game.timerStarted || guessingError) return
 
+    const controller = new AbortController()
+    let requestStarted = false
     const timer = setTimeout(() => {
       const speaker = getNextEligibleGuesser(
         game.guessers,
@@ -265,25 +271,30 @@ function App() {
       })
       logGuessPrompt(speaker.name, promptRequest)
 
-      const shouldBeCorrect = Math.random() < CORRECT_GUESS_PROBABILITY
-      const incorrectGuesses = sampleIncorrectGuesses.filter(
-        (guess) =>
-          !isCorrectGuess(guess, round.prompt) &&
-          !game.guessAttempts.some((attempt) => attempt.guess === guess),
-      )
-      const guess = shouldBeCorrect
-        ? `Is it ${round.prompt}?`
-        : incorrectGuesses[Math.floor(Math.random() * incorrectGuesses.length)] ?? 'I am not sure yet'
-
-      dispatchGame({
-        type: 'speak',
-        guesserId: speaker.id,
-        guess,
-        prompt: round.prompt,
-        now: Date.now(),
-      })
+      requestStarted = true
+      setActiveGuesserId(speaker.id)
+      void requestCharacterGuess(promptRequest, controller.signal)
+        .then((guess) => {
+          dispatchGame({
+            type: 'speak',
+            guesserId: speaker.id,
+            guess,
+            prompt: round.prompt,
+            now: Date.now(),
+          })
+        })
+        .catch((error: unknown) => {
+          if (isGuessRequestAborted(error)) return
+          console.error(`[Guess What I'm Drawing] ${speaker.name} could not guess`, error)
+          setGuessingError(describeGuessRequestError(error))
+        })
+        .finally(() => setActiveGuesserId(null))
     }, 1600)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+      if (requestStarted) setActiveGuesserId(null)
+    }
   }, [
     game.correctGuesserIds,
     game.guessAttempts,
@@ -295,6 +306,7 @@ function App() {
     round.topic,
     roundComplete,
     showSetup,
+    guessingError,
   ])
 
   const sendHint = () => {
@@ -309,6 +321,8 @@ function App() {
     setSelectedTopic(topic)
     setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
     setRoundNumber(1)
+    setActiveGuesserId(null)
+    setGuessingError(null)
     setShowSetup(false)
   }
 
@@ -322,6 +336,8 @@ function App() {
     })
     setRoundNumber((current) => current + 1)
     setShowPrompt(true)
+    setActiveGuesserId(null)
+    setGuessingError(null)
     dispatchGame({ type: 'nextRound' })
     canvasRef.current?.clear()
   }
@@ -332,6 +348,8 @@ function App() {
     setSize(SIZES[1])
     setHint('')
     setShowPrompt(true)
+    setActiveGuesserId(null)
+    setGuessingError(null)
     dispatchGame({ type: 'reset' })
     setRound(initialRound)
     setSelectedTopic(defaultTopic)
@@ -372,20 +390,38 @@ function App() {
         </header>
 
         {/* Guessers with live chat bubbles */}
-        <GuesserBar guessers={game.guessers} correctGuesserIds={game.correctGuesserIds} />
+        <GuesserBar
+          guessers={game.guessers}
+          correctGuesserIds={game.correctGuesserIds}
+          activeGuesserId={activeGuesserId}
+        />
 
-        <div className="round-status" aria-live="polite">
-          <span>Round {roundNumber}</span>
-          <span aria-hidden="true">•</span>
-          <span>
-            {roundComplete
-              ? 'Round complete'
-              : !game.timerStarted
-                ? 'Start drawing to begin'
-              : `${game.correctGuesserIds.length} of ${game.guessers.length} guessed`}
-          </span>
-          <span aria-hidden="true">•</span>
-          <span>First to {WINNING_SCORE} wins</span>
+        <div
+          className={`round-status${guessingError ? ' round-status--error' : ''}`}
+          aria-live="polite"
+        >
+          {guessingError ? (
+            <>
+              <span>{guessingError}</span>
+              <button type="button" onClick={() => setGuessingError(null)}>Retry</button>
+            </>
+          ) : (
+            <>
+              <span>Round {roundNumber}</span>
+              <span aria-hidden="true">•</span>
+              <span>
+                {roundComplete
+                  ? 'Round complete'
+                  : !game.timerStarted
+                    ? 'Start drawing to begin'
+                    : activeGuesserId
+                      ? `${game.guessers.find((guesser) => guesser.id === activeGuesserId)?.name ?? 'Character'} is thinking`
+                      : `${game.correctGuesserIds.length} of ${game.guessers.length} guessed`}
+              </span>
+              <span aria-hidden="true">•</span>
+              <span>First to {WINNING_SCORE} wins</span>
+            </>
+          )}
         </div>
 
         {/* The drawing surface */}

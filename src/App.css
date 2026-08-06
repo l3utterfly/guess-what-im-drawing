@@ -224,6 +224,10 @@
   border-top: none;
   border-left: none;
 }
+.chat-bubble--thinking {
+  color: var(--muted);
+  font-style: italic;
+}
 @keyframes pop {
   from {
     transform: scale(0.6) translateY(6px);
@@ -295,6 +299,16 @@
   font-weight: 800;
   letter-spacing: 0.03em;
   color: var(--muted);
+}
+.round-status--error {
+  color: #c72f52;
+}
+.round-status--error button {
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: #c72f52;
+  font: inherit;
 }
 
 /* ---------- Round complete ---------- */

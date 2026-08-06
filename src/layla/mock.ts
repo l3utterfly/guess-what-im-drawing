@@ -46,6 +46,27 @@ interface LMStudioChatChunk {
   }>
 }
 
+interface LMStudioMessage {
+  role: LaylaChatMessage['role']
+  content:
+    | string
+    | Array<
+        | { type: 'text'; text: string }
+        | { type: 'image_url'; image_url: { url: string } }
+      >
+}
+
+function toLMStudioMessage(message: LaylaChatMessage): LMStudioMessage {
+  if (!message.image_base64) {
+    return { role: message.role, content: message.content ?? '' }
+  }
+
+  const content: LMStudioMessage['content'] = []
+  if (message.content) content.push({ type: 'text', text: message.content })
+  content.push({ type: 'image_url', image_url: { url: message.image_base64 } })
+  return { role: message.role, content }
+}
+
 function readContentDelta(line: string): string | null {
   const trimmedLine = line.trim()
   if (!trimmedLine.startsWith('data:')) return null
@@ -64,7 +85,7 @@ async function* respondWithLMStudio(messages: LaylaChatMessage[]): AsyncGenerato
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ messages, stream: true }),
+    body: JSON.stringify({ messages: messages.map(toLMStudioMessage), stream: true }),
   })
 
   if (!response.ok) {

@@ -3,17 +3,21 @@ import type { Guesser } from './types'
 interface Props {
   guessers: Guesser[]
   correctGuesserIds: string[]
+  activeGuesserId: string | null
 }
 
-export function GuesserBar({ guessers, correctGuesserIds }: Props) {
+export function GuesserBar({ guessers, correctGuesserIds, activeGuesserId }: Props) {
   return (
     <div className="guessers">
       {guessers.map((g) => (
         <div className="guesser" key={g.id}>
           <div className="guesser-bubble-slot">
-            {g.guess && (
-              <div className="chat-bubble" style={{ borderColor: g.color }}>
-                {g.guess}
+            {(g.guess || activeGuesserId === g.id) && (
+              <div
+                className={`chat-bubble${activeGuesserId === g.id ? ' chat-bubble--thinking' : ''}`}
+                style={{ borderColor: g.color }}
+              >
+                {activeGuesserId === g.id ? 'Thinking…' : g.guess}
               </div>
             )}
           </div>
