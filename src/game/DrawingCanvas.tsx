@@ -8,6 +8,7 @@ interface Props {
 
 export interface CanvasHandle {
   clear: () => void
+  getScreenshot: () => string | null
 }
 
 /**
@@ -28,6 +29,22 @@ export const DrawingCanvas = forwardRef<CanvasHandle, Props>(function DrawingCan
       const c = canvasRef.current
       const ctx = c?.getContext('2d')
       if (c && ctx) ctx.clearRect(0, 0, c.width, c.height)
+    },
+    getScreenshot() {
+      const canvas = canvasRef.current
+      if (!canvas) return null
+
+      // The visible canvas is white via CSS, while its bitmap is transparent.
+      // Flatten it onto white so the model receives the same image the user sees.
+      const snapshot = document.createElement('canvas')
+      snapshot.width = canvas.width
+      snapshot.height = canvas.height
+      const context = snapshot.getContext('2d')
+      if (!context) return null
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, snapshot.width, snapshot.height)
+      context.drawImage(canvas, 0, 0)
+      return snapshot.toDataURL('image/png')
     },
   }))
 

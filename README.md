@@ -20,9 +20,11 @@ A local React and TypeScript drawing game. Choose four characters and a topic, d
 - The first character to reach **30 points** wins the game.
 - Restarting or choosing **Play again** returns to setup and resets all scores.
 
-## Local guess simulation
+## Prompt preview and local guess simulation
 
-The current build simulates character speech so the game loop can be tested without connecting a model. Once the first brush stroke starts the round, one character who has not yet solved the current drawing speaks every 1.6 seconds. Each time a character speaks, there is an independent **30% probability** that their message contains the exact prompt; all other simulated messages are checked to ensure they do not accidentally contain it.
+The current build assembles—but does not send—the future multimodal model request. Every character turn contains exactly two messages: a system prompt with character-card details, topic, prior incorrect guesses, and user hints; and a user message containing the latest canvas screenshot. The complete request is logged to the browser console for prompt tuning. The provider-independent builder lives in `src/prompting/guessPrompt.ts`.
+
+Once the first brush stroke starts the round, eligible characters take turns in roster order every 1.6 seconds. The UI still uses a mock response after logging each prompt so the game loop can be tested. Every mock turn has an independent **30% probability** of containing the exact prompt; all other simulated messages are checked to ensure they do not accidentally contain it.
 
 The scoring and matching rules live in `src/game/gameLogic.ts`. The simulation uses those same rules rather than awarding points directly.
 

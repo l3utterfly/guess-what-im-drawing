@@ -1,11 +1,21 @@
+import type { CharacterPromptProfile } from '../prompting'
+
 export interface Guesser {
   id: string
   name: string
   avatar: string // emoji
   color: string // accent color for avatar ring / bubble
+  promptProfile: CharacterPromptProfile
   score: number
   /** The guess currently being "shouted" — null when quiet. */
   guess: string | null
+}
+
+export interface GuessAttempt {
+  guesserId: string
+  characterName: string
+  guess: string
+  correct: boolean
 }
 
 export interface Round {

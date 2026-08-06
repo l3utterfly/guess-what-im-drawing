@@ -33,6 +33,12 @@ function toGuesser(character: LaylaCharacter, index: number): Guesser {
       typeof gameMetadata.color === 'string'
         ? gameMetadata.color
         : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+    promptProfile: {
+      name,
+      description: character.data.data.description,
+      personality: character.data.data.personality,
+      scenario: character.data.data.scenario,
+    },
     score: 0,
     guess: null,
   }

@@ -14,8 +14,9 @@ import {
   ROUND_DURATION_SECONDS,
   WINNING_SCORE,
 } from './game/gameLogic'
-import type { Guesser, TopicOption } from './game/types'
+import type { Guesser, GuessAttempt, TopicOption } from './game/types'
 import { listGuessers } from './layla/client'
+import { buildGuessPrompt, logGuessPrompt } from './prompting'
 
 const COLORS = [
   '#1e1e2e', // ink
@@ -35,6 +36,9 @@ const SIZES = [4, 10, 18, 30]
 interface GameState {
   guessers: Guesser[]
   correctGuesserIds: string[]
+  guessAttempts: GuessAttempt[]
+  hints: string[]
+  nextGuesserIndex: number
   winnerId: string | null
   remainingSeconds: number
   roundEndsAt: number
@@ -46,6 +50,7 @@ type GameAction =
   | { type: 'start'; guessers: Guesser[] }
   | { type: 'startTimer'; now: number }
   | { type: 'speak'; guesserId: string; guess: string; prompt: string; now: number }
+  | { type: 'addHint'; hint: string }
   | { type: 'tick'; now: number }
   | { type: 'nextRound' }
   | { type: 'reset' }
@@ -56,6 +61,9 @@ const freshGuessers = (guessers: Guesser[]) =>
 const initialGameState: GameState = {
   guessers: [],
   correctGuesserIds: [],
+  guessAttempts: [],
+  hints: [],
+  nextGuesserIndex: 0,
   winnerId: null,
   remainingSeconds: ROUND_DURATION_SECONDS,
   roundEndsAt: 0,
@@ -69,6 +77,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         guessers: freshGuessers(action.guessers),
         correctGuesserIds: [],
+        guessAttempts: [],
+        hints: [],
+        nextGuesserIndex: 0,
         winnerId: null,
         remainingSeconds: ROUND_DURATION_SECONDS,
         roundEndsAt: 0,
@@ -95,13 +106,36 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         action.guess,
         action.prompt,
       )
+      const speakerIndex = state.guessers.findIndex((guesser) => guesser.id === action.guesserId)
+      const speaker = state.guessers[speakerIndex]
+      if (!speaker) return state
+
+      const correct =
+        !state.correctGuesserIds.includes(action.guesserId) &&
+        isCorrectGuess(action.guess, action.prompt)
       return {
         ...state,
         guessers: outcome.guessers,
         correctGuesserIds: outcome.correctGuesserIds,
+        guessAttempts: [
+          ...state.guessAttempts,
+          {
+            guesserId: speaker.id,
+            characterName: speaker.name,
+            guess: action.guess,
+            correct,
+          },
+        ],
+        nextGuesserIndex:
+          state.guessers.length > 0 ? (speakerIndex + 1) % state.guessers.length : 0,
         winnerId: state.winnerId ?? outcome.winnerId,
         roundEnded: outcome.correctGuesserIds.length === outcome.guessers.length,
       }
+    }
+    case 'addHint': {
+      const hint = action.hint.trim()
+      if (!hint || state.roundEnded) return state
+      return { ...state, hints: [...state.hints, hint] }
     }
     case 'tick': {
       if (!state.timerStarted || state.roundEnded) return state
@@ -117,6 +151,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         guessers: state.guessers.map((guesser) => ({ ...guesser, guess: null })),
         correctGuesserIds: [],
+        guessAttempts: [],
+        hints: [],
+        nextGuesserIndex: 0,
         remainingSeconds: ROUND_DURATION_SECONDS,
         roundEndsAt: 0,
         timerStarted: false,
@@ -125,6 +162,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'reset':
       return initialGameState
   }
+}
+
+function getNextEligibleGuesser(
+  guessers: Guesser[],
+  correctGuesserIds: string[],
+  startIndex: number,
+): Guesser | null {
+  for (let offset = 0; offset < guessers.length; offset += 1) {
+    const guesser = guessers[(startIndex + offset) % guessers.length]
+    if (guesser && !correctGuesserIds.includes(guesser.id)) return guesser
+  }
+  return null
 }
 
 function App() {
@@ -185,21 +234,42 @@ function App() {
     return () => clearInterval(timer)
   }, [game.timerStarted, roundComplete, showSetup])
 
-  // Local test simulation: one eligible character speaks each tick, with an
-  // independent 30% chance that their message contains the drawing prompt.
+  // Temporary local simulation. Characters take turns in roster order. Each
+  // turn builds and logs the exact multimodal request before a mock guess is
+  // dispatched; the Layla chat API is intentionally not called yet.
   useEffect(() => {
     if (showSetup || roundComplete || !game.timerStarted) return
 
-    const timer = setInterval(() => {
-      const eligibleGuessers = game.guessers.filter(
-        (guesser) => !game.correctGuesserIds.includes(guesser.id),
+    const timer = setTimeout(() => {
+      const speaker = getNextEligibleGuesser(
+        game.guessers,
+        game.correctGuesserIds,
+        game.nextGuesserIndex,
       )
-      const speaker = eligibleGuessers[Math.floor(Math.random() * eligibleGuessers.length)]
       if (!speaker) return
+
+      const canvasImageDataUrl = canvasRef.current?.getScreenshot()
+      if (!canvasImageDataUrl) return
+
+      const promptRequest = buildGuessPrompt({
+        character: speaker.promptProfile,
+        topic: round.topic,
+        incorrectGuesses: game.guessAttempts
+          .filter((attempt) => !attempt.correct)
+          .map((attempt) => ({
+            characterName: attempt.characterName,
+            guess: attempt.guess,
+          })),
+        hints: game.hints,
+        canvasImageDataUrl,
+      })
+      logGuessPrompt(speaker.name, promptRequest)
 
       const shouldBeCorrect = Math.random() < CORRECT_GUESS_PROBABILITY
       const incorrectGuesses = sampleIncorrectGuesses.filter(
-        (guess) => !isCorrectGuess(guess, round.prompt),
+        (guess) =>
+          !isCorrectGuess(guess, round.prompt) &&
+          !game.guessAttempts.some((attempt) => attempt.guess === guess),
       )
       const guess = shouldBeCorrect
         ? `Is it ${round.prompt}?`
@@ -213,19 +283,23 @@ function App() {
         now: Date.now(),
       })
     }, 1600)
-    return () => clearInterval(timer)
+    return () => clearTimeout(timer)
   }, [
     game.correctGuesserIds,
+    game.guessAttempts,
     game.guessers,
+    game.hints,
+    game.nextGuesserIndex,
     game.timerStarted,
     round.prompt,
+    round.topic,
     roundComplete,
     showSetup,
   ])
 
   const sendHint = () => {
     if (!hint.trim()) return
-    // UI only — no network yet.
+    dispatchGame({ type: 'addHint', hint })
     setHint('')
   }
 
