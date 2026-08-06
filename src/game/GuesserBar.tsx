@@ -2,9 +2,10 @@ import type { Guesser } from './types'
 
 interface Props {
   guessers: Guesser[]
+  correctGuesserIds: string[]
 }
 
-export function GuesserBar({ guessers }: Props) {
+export function GuesserBar({ guessers, correctGuesserIds }: Props) {
   return (
     <div className="guessers">
       {guessers.map((g) => (
@@ -16,8 +17,14 @@ export function GuesserBar({ guessers }: Props) {
               </div>
             )}
           </div>
-          <div className="avatar" style={{ boxShadow: `0 0 0 3px ${g.color}` }}>
+          <div
+            className={`avatar${correctGuesserIds.includes(g.id) ? ' avatar--correct' : ''}`}
+            style={{ boxShadow: `0 0 0 3px ${g.color}` }}
+          >
             <span className="avatar-emoji">{g.avatar}</span>
+            {correctGuesserIds.includes(g.id) && (
+              <span className="correct-badge" aria-label="Guessed correctly">✓</span>
+            )}
           </div>
           <div className="guesser-name">{g.name}</div>
           <div className="guesser-score">

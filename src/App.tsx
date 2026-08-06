@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import './App.css'
 import { DrawingCanvas, type CanvasHandle } from './game/DrawingCanvas'
 import { GuesserBar } from './game/GuesserBar'
@@ -8,9 +8,15 @@ import {
   guessers as initialGuessers,
   playerOptions,
   round as initialRound,
-  sampleGuesses,
+  sampleIncorrectGuesses,
   topicOptions,
 } from './game/mockData'
+import {
+  applyGuess,
+  CORRECT_GUESS_PROBABILITY,
+  isCorrectGuess,
+  WINNING_SCORE,
+} from './game/gameLogic'
 import type { Guesser, TopicOption } from './game/types'
 
 const COLORS = [
@@ -28,34 +34,117 @@ const COLORS = [
 
 const SIZES = [4, 10, 18, 30]
 
+interface GameState {
+  guessers: Guesser[]
+  correctGuesserIds: string[]
+  winnerId: string | null
+}
+
+type GameAction =
+  | { type: 'start'; guessers: Guesser[] }
+  | { type: 'speak'; guesserId: string; guess: string; prompt: string }
+  | { type: 'nextRound' }
+  | { type: 'reset' }
+
+const freshGuessers = (guessers: Guesser[]) =>
+  guessers.map((guesser) => ({ ...guesser, score: 0, guess: null }))
+
+const initialGameState: GameState = {
+  guessers: freshGuessers(initialGuessers),
+  correctGuesserIds: [],
+  winnerId: null,
+}
+
+function gameReducer(state: GameState, action: GameAction): GameState {
+  switch (action.type) {
+    case 'start':
+      return { guessers: freshGuessers(action.guessers), correctGuesserIds: [], winnerId: null }
+    case 'speak': {
+      if (state.winnerId) return state
+      const outcome = applyGuess(
+        state.guessers,
+        state.correctGuesserIds,
+        action.guesserId,
+        action.guess,
+        action.prompt,
+      )
+      return {
+        guessers: outcome.guessers,
+        correctGuesserIds: outcome.correctGuesserIds,
+        winnerId: outcome.winnerId,
+      }
+    }
+    case 'nextRound':
+      return {
+        ...state,
+        guessers: state.guessers.map((guesser) => ({ ...guesser, guess: null })),
+        correctGuesserIds: [],
+      }
+    case 'reset':
+      return initialGameState
+  }
+}
+
 function App() {
   const [color, setColor] = useState(COLORS[0])
   const [size, setSize] = useState(SIZES[1])
   const [hint, setHint] = useState('')
   const [showPrompt, setShowPrompt] = useState(true)
-  const [guessers, setGuessers] = useState<Guesser[]>(initialGuessers)
+  const [game, dispatchGame] = useReducer(gameReducer, initialGameState)
   const [round, setRound] = useState(initialRound)
+  const [selectedTopic, setSelectedTopic] = useState<TopicOption>(topicOptions[0])
+  const [roundNumber, setRoundNumber] = useState(1)
   const [showSetup, setShowSetup] = useState(true)
   const canvasRef = useRef<CanvasHandle>(null)
+  const winner = game.guessers.find((guesser) => guesser.id === game.winnerId) ?? null
+  const roundComplete =
+    game.guessers.length > 0 && game.correctGuesserIds.length === game.guessers.length
 
-  // UI-only flourish: randomly pop guess bubbles above the guessers so the
-  // chat-bubble feature is visible without a backend.
+  // Local test simulation: one eligible character speaks each tick, with an
+  // independent 10% chance that their message contains the drawing prompt.
   useEffect(() => {
-    if (showSetup) return
+    if (showSetup || game.winnerId || roundComplete) return
 
     const timer = setInterval(() => {
-      setGuessers((prev) =>
-        prev.map((g) =>
-          Math.random() < 0.4
-            ? { ...g, guess: sampleGuesses[Math.floor(Math.random() * sampleGuesses.length)] }
-            : Math.random() < 0.5
-              ? { ...g, guess: null }
-              : g,
-        ),
+      const eligibleGuessers = game.guessers.filter(
+        (guesser) => !game.correctGuesserIds.includes(guesser.id),
       )
+      const speaker = eligibleGuessers[Math.floor(Math.random() * eligibleGuessers.length)]
+      if (!speaker) return
+
+      const shouldBeCorrect = Math.random() < CORRECT_GUESS_PROBABILITY
+      const incorrectGuesses = sampleIncorrectGuesses.filter(
+        (guess) => !isCorrectGuess(guess, round.prompt),
+      )
+      const guess = shouldBeCorrect
+        ? `Is it ${round.prompt}?`
+        : incorrectGuesses[Math.floor(Math.random() * incorrectGuesses.length)] ?? 'I am not sure yet'
+
+      dispatchGame({ type: 'speak', guesserId: speaker.id, guess, prompt: round.prompt })
     }, 1600)
     return () => clearInterval(timer)
-  }, [showSetup])
+  }, [game.correctGuesserIds, game.guessers, game.winnerId, round.prompt, roundComplete, showSetup])
+
+  // Once all four placements are filled, preserve the scores and move to the
+  // next drawing in the selected topic.
+  useEffect(() => {
+    if (showSetup || game.winnerId || !roundComplete) return
+
+    const timer = setTimeout(() => {
+      const currentPromptIndex = selectedTopic.prompts.indexOf(round.prompt)
+      const nextPromptIndex = (currentPromptIndex + 1) % selectedTopic.prompts.length
+      setRound({
+        topic: selectedTopic.topic,
+        topicEmoji: selectedTopic.topicEmoji,
+        prompt: selectedTopic.prompts[nextPromptIndex],
+      })
+      setRoundNumber((current) => current + 1)
+      dispatchGame({ type: 'nextRound' })
+      canvasRef.current?.clear()
+    }, 1800)
+
+    return () => clearTimeout(timer)
+  }, [game.winnerId, round.prompt, roundComplete, selectedTopic, showSetup])
 
   const sendHint = () => {
     if (!hint.trim()) return
@@ -64,8 +153,11 @@ function App() {
   }
 
   const startGame = (players: Guesser[], topic: TopicOption) => {
-    setGuessers(players)
-    setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: topic.prompt })
+    const firstPrompt = topic.prompts[0] ?? topic.prompt
+    dispatchGame({ type: 'start', guessers: players })
+    setSelectedTopic(topic)
+    setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
+    setRoundNumber(1)
     setShowSetup(false)
   }
 
@@ -75,8 +167,10 @@ function App() {
     setSize(SIZES[1])
     setHint('')
     setShowPrompt(true)
-    setGuessers(initialGuessers)
+    dispatchGame({ type: 'reset' })
     setRound(initialRound)
+    setSelectedTopic(topicOptions[0])
+    setRoundNumber(1)
     setShowSetup(true)
   }
 
@@ -102,7 +196,19 @@ function App() {
         </header>
 
         {/* Guessers with live chat bubbles */}
-        <GuesserBar guessers={guessers} />
+        <GuesserBar guessers={game.guessers} correctGuesserIds={game.correctGuesserIds} />
+
+        <div className="round-status" aria-live="polite">
+          <span>Round {roundNumber}</span>
+          <span aria-hidden="true">•</span>
+          <span>
+            {roundComplete
+              ? 'Next drawing coming up…'
+              : `${game.correctGuesserIds.length} of ${game.guessers.length} guessed`}
+          </span>
+          <span aria-hidden="true">•</span>
+          <span>First to {WINNING_SCORE} wins</span>
+        </div>
 
         {/* The drawing surface */}
         <main className="canvas-wrap">
@@ -153,6 +259,22 @@ function App() {
       </div>
       {showSetup && (
         <GameSetupModal players={playerOptions} topics={topicOptions} onStart={startGame} />
+      )}
+      {winner && (
+        <div className="winner-backdrop">
+          <div className="winner-card" role="dialog" aria-modal="true" aria-labelledby="winner-title">
+            <span className="winner-confetti" aria-hidden="true">🎉</span>
+            <div className="winner-avatar" style={{ boxShadow: `0 0 0 5px ${winner.color}` }}>
+              {winner.avatar}
+            </div>
+            <span className="winner-eyebrow">We have a winner</span>
+            <h1 id="winner-title">{winner.name} wins!</h1>
+            <p>{winner.name} reached {winner.score} points first.</p>
+            <button type="button" className="winner-button" onClick={restartGame}>
+              Play again
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

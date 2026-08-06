@@ -20,4 +20,6 @@ export interface TopicOption extends Round {
   id: string
   description: string
   color: string
+  /** Drawing prompts used for consecutive rounds in this topic. */
+  prompts: string[]
 }
