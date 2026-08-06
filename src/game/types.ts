@@ -32,6 +32,6 @@ export interface TopicOption {
   topicEmoji: string
   description: string
   color: string
-  /** Drawing prompts used for consecutive rounds in this topic. */
+  /** Drawing prompts available for random selection in this topic. */
   prompts: [string, ...string[]]
 }

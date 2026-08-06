@@ -5,6 +5,7 @@ A local React and TypeScript drawing game. Choose four characters and a topic, d
 ## Game rules
 
 - Every character starts each game with **0 points**.
+- The first drawing prompt is chosen randomly from the selected topic. Later rounds choose randomly from prompts not yet used in that game, resetting the pool only after every prompt has appeared.
 - A guess is correct when the character's complete message contains the drawing word or phrase. Matching is case-insensitive, so both `ELEPHANT!` and `Is it an elephant?` match the prompt `Elephant`.
 - Each character can score once per drawing. Correct guesses earn points in placement order:
 

@@ -9,6 +9,7 @@ import { defaultTopic, initialRound, topicOptions } from './game/topics'
 import {
   applyGuess,
   isCorrectGuess,
+  pickRandomPrompt,
   ROUND_DURATION_SECONDS,
   WINNING_SCORE,
 } from './game/gameLogic'
@@ -187,6 +188,7 @@ function App() {
   const [game, dispatchGame] = useReducer(gameReducer, initialGameState)
   const [round, setRound] = useState(initialRound)
   const [selectedTopic, setSelectedTopic] = useState<TopicOption>(defaultTopic)
+  const [usedPrompts, setUsedPrompts] = useState<string[]>([])
   const [roundNumber, setRoundNumber] = useState(1)
   const [showSetup, setShowSetup] = useState(true)
   const [playerOptions, setPlayerOptions] = useState<Guesser[]>([])
@@ -317,9 +319,10 @@ function App() {
   }
 
   const startGame = (players: Guesser[], topic: TopicOption) => {
-    const firstPrompt = topic.prompts[0]
+    const firstPrompt = pickRandomPrompt(topic.prompts)
     dispatchGame({ type: 'start', guessers: players })
     setSelectedTopic(topic)
+    setUsedPrompts([firstPrompt])
     setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
     setRoundNumber(1)
     setActiveGuesserId(null)
@@ -328,12 +331,18 @@ function App() {
   }
 
   const startNextRound = () => {
-    const currentPromptIndex = selectedTopic.prompts.indexOf(round.prompt)
-    const nextPromptIndex = (currentPromptIndex + 1) % selectedTopic.prompts.length
+    const unusedPrompts = selectedTopic.prompts.filter((prompt) => !usedPrompts.includes(prompt))
+    const nextPool =
+      unusedPrompts.length > 0
+        ? unusedPrompts
+        : selectedTopic.prompts.filter((prompt) => prompt !== round.prompt)
+    const nextPrompt = pickRandomPrompt(nextPool.length > 0 ? nextPool : selectedTopic.prompts)
+
+    setUsedPrompts(unusedPrompts.length > 0 ? [...usedPrompts, nextPrompt] : [nextPrompt])
     setRound({
       topic: selectedTopic.topic,
       topicEmoji: selectedTopic.topicEmoji,
-      prompt: selectedTopic.prompts[nextPromptIndex],
+      prompt: nextPrompt,
     })
     setRoundNumber((current) => current + 1)
     setShowPrompt(true)
@@ -354,6 +363,7 @@ function App() {
     dispatchGame({ type: 'reset' })
     setRound(initialRound)
     setSelectedTopic(defaultTopic)
+    setUsedPrompts([])
     setRoundNumber(1)
     setShowSetup(true)
   }

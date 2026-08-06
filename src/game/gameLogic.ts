@@ -12,6 +12,12 @@ export interface GuessOutcome {
   winnerId: string | null
 }
 
+/** Selects one prompt uniformly from a non-empty prompt pool. */
+export function pickRandomPrompt(prompts: readonly string[]): string {
+  if (prompts.length === 0) throw new Error('Cannot choose a prompt from an empty topic.')
+  return prompts[Math.floor(Math.random() * prompts.length)] ?? prompts[0]
+}
+
 /** A guess is correct when it contains the complete prompt, ignoring case. */
 export function isCorrectGuess(guess: string, prompt: string): boolean {
   const normalizedPrompt = prompt.trim().toLocaleLowerCase()
