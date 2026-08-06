@@ -38,14 +38,16 @@ interface GameState {
   winnerId: string | null
   remainingSeconds: number
   roundEndsAt: number
+  timerStarted: boolean
   roundEnded: boolean
 }
 
 type GameAction =
-  | { type: 'start'; guessers: Guesser[]; now: number }
+  | { type: 'start'; guessers: Guesser[] }
+  | { type: 'startTimer'; now: number }
   | { type: 'speak'; guesserId: string; guess: string; prompt: string; now: number }
   | { type: 'tick'; now: number }
-  | { type: 'nextRound'; now: number }
+  | { type: 'nextRound' }
   | { type: 'reset' }
 
 const freshGuessers = (guessers: Guesser[]) =>
@@ -57,6 +59,7 @@ const initialGameState: GameState = {
   winnerId: null,
   remainingSeconds: ROUND_DURATION_SECONDS,
   roundEndsAt: 0,
+  timerStarted: false,
   roundEnded: false,
 }
 
@@ -68,11 +71,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         correctGuesserIds: [],
         winnerId: null,
         remainingSeconds: ROUND_DURATION_SECONDS,
-        roundEndsAt: action.now + ROUND_DURATION_SECONDS * 1000,
+        roundEndsAt: 0,
+        timerStarted: false,
         roundEnded: false,
       }
+    case 'startTimer':
+      if (state.timerStarted || state.roundEnded) return state
+      return {
+        ...state,
+        roundEndsAt: action.now + ROUND_DURATION_SECONDS * 1000,
+        timerStarted: true,
+      }
     case 'speak': {
-      if (state.roundEnded) return state
+      if (!state.timerStarted || state.roundEnded) return state
       if (action.now >= state.roundEndsAt) {
         return { ...state, remainingSeconds: 0, roundEnded: true }
       }
@@ -93,7 +104,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
     }
     case 'tick': {
-      if (state.roundEnded) return state
+      if (!state.timerStarted || state.roundEnded) return state
       const remainingSeconds = Math.max(0, Math.ceil((state.roundEndsAt - action.now) / 1000))
       return {
         ...state,
@@ -107,7 +118,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         guessers: state.guessers.map((guesser) => ({ ...guesser, guess: null })),
         correctGuesserIds: [],
         remainingSeconds: ROUND_DURATION_SECONDS,
-        roundEndsAt: action.now + ROUND_DURATION_SECONDS * 1000,
+        roundEndsAt: 0,
+        timerStarted: false,
         roundEnded: false,
       }
     case 'reset':
@@ -165,18 +177,18 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (showSetup || roundComplete) return
+    if (showSetup || roundComplete || !game.timerStarted) return
 
     const updateTimer = () => dispatchGame({ type: 'tick', now: Date.now() })
     updateTimer()
     const timer = setInterval(updateTimer, 250)
     return () => clearInterval(timer)
-  }, [roundComplete, showSetup])
+  }, [game.timerStarted, roundComplete, showSetup])
 
   // Local test simulation: one eligible character speaks each tick, with an
   // independent 30% chance that their message contains the drawing prompt.
   useEffect(() => {
-    if (showSetup || roundComplete) return
+    if (showSetup || roundComplete || !game.timerStarted) return
 
     const timer = setInterval(() => {
       const eligibleGuessers = game.guessers.filter(
@@ -202,7 +214,14 @@ function App() {
       })
     }, 1600)
     return () => clearInterval(timer)
-  }, [game.correctGuesserIds, game.guessers, round.prompt, roundComplete, showSetup])
+  }, [
+    game.correctGuesserIds,
+    game.guessers,
+    game.timerStarted,
+    round.prompt,
+    roundComplete,
+    showSetup,
+  ])
 
   const sendHint = () => {
     if (!hint.trim()) return
@@ -212,7 +231,7 @@ function App() {
 
   const startGame = (players: Guesser[], topic: TopicOption) => {
     const firstPrompt = topic.prompts[0]
-    dispatchGame({ type: 'start', guessers: players, now: Date.now() })
+    dispatchGame({ type: 'start', guessers: players })
     setSelectedTopic(topic)
     setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
     setRoundNumber(1)
@@ -229,7 +248,7 @@ function App() {
     })
     setRoundNumber((current) => current + 1)
     setShowPrompt(true)
-    dispatchGame({ type: 'nextRound', now: Date.now() })
+    dispatchGame({ type: 'nextRound' })
     canvasRef.current?.clear()
   }
 
@@ -254,7 +273,11 @@ function App() {
           <div
             className={`round-timer${game.remainingSeconds <= 60 ? ' round-timer--urgent' : ''}`}
             role="timer"
-            aria-label={`${formattedTime} remaining in round ${roundNumber}`}
+            aria-label={
+              game.timerStarted
+                ? `${formattedTime} remaining in round ${roundNumber}`
+                : `Round ${roundNumber} timer starts when drawing begins`
+            }
           >
             <span>Round {roundNumber}</span>
             <time>{formattedTime}</time>
@@ -283,6 +306,8 @@ function App() {
           <span>
             {roundComplete
               ? 'Round complete'
+              : !game.timerStarted
+                ? 'Start drawing to begin'
               : `${game.correctGuesserIds.length} of ${game.guessers.length} guessed`}
           </span>
           <span aria-hidden="true">•</span>
@@ -291,7 +316,12 @@ function App() {
 
         {/* The drawing surface */}
         <main className="canvas-wrap">
-          <DrawingCanvas ref={canvasRef} color={color} size={size} />
+          <DrawingCanvas
+            ref={canvasRef}
+            color={color}
+            size={size}
+            onStrokeStart={() => dispatchGame({ type: 'startTimer', now: Date.now() })}
+          />
         </main>
 
         {/* Secret prompt — only the drawer sees this */}

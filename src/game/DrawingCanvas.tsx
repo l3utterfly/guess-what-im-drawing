@@ -3,6 +3,7 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 interface Props {
   color: string
   size: number
+  onStrokeStart?: () => void
 }
 
 export interface CanvasHandle {
@@ -15,7 +16,7 @@ export interface CanvasHandle {
  * mobile. Drawing state lives entirely in the canvas bitmap.
  */
 export const DrawingCanvas = forwardRef<CanvasHandle, Props>(function DrawingCanvas(
-  { color, size },
+  { color, size, onStrokeStart },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -67,6 +68,7 @@ export const DrawingCanvas = forwardRef<CanvasHandle, Props>(function DrawingCan
     last.current = pos(e)
     // A tap should leave a dot.
     draw(e)
+    onStrokeStart?.()
   }
 
   const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
