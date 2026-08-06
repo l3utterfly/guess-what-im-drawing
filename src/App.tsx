@@ -4,6 +4,7 @@ import { DrawingCanvas, type CanvasHandle } from './game/DrawingCanvas'
 import { GuesserBar } from './game/GuesserBar'
 import { BrushBar } from './game/BrushBar'
 import { GameSetupModal } from './game/GameSetupModal'
+import { RoundCompleteModal } from './game/RoundCompleteModal'
 import {
   guessers as initialGuessers,
   playerOptions,
@@ -60,7 +61,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'start':
       return { guessers: freshGuessers(action.guessers), correctGuesserIds: [], winnerId: null }
     case 'speak': {
-      if (state.winnerId) return state
       const outcome = applyGuess(
         state.guessers,
         state.correctGuesserIds,
@@ -71,7 +71,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         guessers: outcome.guessers,
         correctGuesserIds: outcome.correctGuesserIds,
-        winnerId: outcome.winnerId,
+        winnerId: state.winnerId ?? outcome.winnerId,
       }
     }
     case 'nextRound':
@@ -99,11 +99,14 @@ function App() {
   const winner = game.guessers.find((guesser) => guesser.id === game.winnerId) ?? null
   const roundComplete =
     game.guessers.length > 0 && game.correctGuesserIds.length === game.guessers.length
+  const roundPlacements = game.correctGuesserIds
+    .map((id) => game.guessers.find((guesser) => guesser.id === id))
+    .filter((guesser): guesser is Guesser => Boolean(guesser))
 
   // Local test simulation: one eligible character speaks each tick, with an
   // independent 30% chance that their message contains the drawing prompt.
   useEffect(() => {
-    if (showSetup || game.winnerId || roundComplete) return
+    if (showSetup || roundComplete) return
 
     const timer = setInterval(() => {
       const eligibleGuessers = game.guessers.filter(
@@ -123,28 +126,7 @@ function App() {
       dispatchGame({ type: 'speak', guesserId: speaker.id, guess, prompt: round.prompt })
     }, 1600)
     return () => clearInterval(timer)
-  }, [game.correctGuesserIds, game.guessers, game.winnerId, round.prompt, roundComplete, showSetup])
-
-  // Once all four placements are filled, preserve the scores and move to the
-  // next drawing in the selected topic.
-  useEffect(() => {
-    if (showSetup || game.winnerId || !roundComplete) return
-
-    const timer = setTimeout(() => {
-      const currentPromptIndex = selectedTopic.prompts.indexOf(round.prompt)
-      const nextPromptIndex = (currentPromptIndex + 1) % selectedTopic.prompts.length
-      setRound({
-        topic: selectedTopic.topic,
-        topicEmoji: selectedTopic.topicEmoji,
-        prompt: selectedTopic.prompts[nextPromptIndex],
-      })
-      setRoundNumber((current) => current + 1)
-      dispatchGame({ type: 'nextRound' })
-      canvasRef.current?.clear()
-    }, 1800)
-
-    return () => clearTimeout(timer)
-  }, [game.winnerId, round.prompt, roundComplete, selectedTopic, showSetup])
+  }, [game.correctGuesserIds, game.guessers, round.prompt, roundComplete, showSetup])
 
   const sendHint = () => {
     if (!hint.trim()) return
@@ -159,6 +141,20 @@ function App() {
     setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
     setRoundNumber(1)
     setShowSetup(false)
+  }
+
+  const startNextRound = () => {
+    const currentPromptIndex = selectedTopic.prompts.indexOf(round.prompt)
+    const nextPromptIndex = (currentPromptIndex + 1) % selectedTopic.prompts.length
+    setRound({
+      topic: selectedTopic.topic,
+      topicEmoji: selectedTopic.topicEmoji,
+      prompt: selectedTopic.prompts[nextPromptIndex],
+    })
+    setRoundNumber((current) => current + 1)
+    setShowPrompt(true)
+    dispatchGame({ type: 'nextRound' })
+    canvasRef.current?.clear()
   }
 
   const restartGame = () => {
@@ -176,7 +172,7 @@ function App() {
 
   return (
     <div className="app">
-      <div className="phone" aria-hidden={showSetup || undefined}>
+      <div className="phone" aria-hidden={showSetup || roundComplete || undefined}>
         {/* Topic — visible to everyone */}
         <header className="topic">
           <span className="topic-label">Topic</span>
@@ -203,7 +199,7 @@ function App() {
           <span aria-hidden="true">•</span>
           <span>
             {roundComplete
-              ? 'Next drawing coming up…'
+              ? 'Round complete'
               : `${game.correctGuesserIds.length} of ${game.guessers.length} guessed`}
           </span>
           <span aria-hidden="true">•</span>
@@ -260,21 +256,15 @@ function App() {
       {showSetup && (
         <GameSetupModal players={playerOptions} topics={topicOptions} onStart={startGame} />
       )}
-      {winner && (
-        <div className="winner-backdrop">
-          <div className="winner-card" role="dialog" aria-modal="true" aria-labelledby="winner-title">
-            <span className="winner-confetti" aria-hidden="true">🎉</span>
-            <div className="winner-avatar" style={{ boxShadow: `0 0 0 5px ${winner.color}` }}>
-              {winner.avatar}
-            </div>
-            <span className="winner-eyebrow">We have a winner</span>
-            <h1 id="winner-title">{winner.name} wins!</h1>
-            <p>{winner.name} reached {winner.score} points first.</p>
-            <button type="button" className="winner-button" onClick={restartGame}>
-              Play again
-            </button>
-          </div>
-        </div>
+      {roundComplete && (
+        <RoundCompleteModal
+          roundNumber={roundNumber}
+          prompt={round.prompt}
+          placements={roundPlacements}
+          gameWinner={winner}
+          onNextRound={startNextRound}
+          onPlayAgain={restartGame}
+        />
       )}
     </div>
   )

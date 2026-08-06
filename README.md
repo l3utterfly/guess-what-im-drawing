@@ -15,7 +15,7 @@ A local React and TypeScript drawing game. Choose four characters and a topic, d
   | Third | 3 |
   | Fourth | 2 |
 
-- After all four characters guess correctly, the next drawing in the selected topic starts automatically and scores carry forward.
+- After all four characters guess correctly, a round-complete screen shows their placement order, points earned, and running totals. The next drawing starts when **Start next round** is selected, and scores carry forward.
 - The first character to reach **30 points** wins the game.
 - Restarting or choosing **Play again** returns to setup and resets all scores.
 
