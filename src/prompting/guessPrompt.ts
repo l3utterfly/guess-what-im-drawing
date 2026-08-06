@@ -47,6 +47,25 @@ export interface GuessPromptRequest {
 
 const clean = (value: string | undefined) => value?.trim() || ''
 
+const REPLY_PERSONALITY_INSTRUCTIONS = [
+  'Sound frustrated that you still cannot guess the drawing correctly.',
+  'Playfully tease the user about their drawing.',
+  'Be wildly confident in your guess for no good reason.',
+  'Laugh warmly at the user\'s drawing while making your guess.',
+  'Briefly admire the user\'s work before making your guess.',
+  'React like an overly dramatic art critic.',
+  'Act suspicious that the drawing is deliberately trying to fool you.',
+  'Be fiercely competitive and determined to guess before everyone else.',
+] as const
+
+function chooseReplyPersonalityInstruction(): string | null {
+  const roll = Math.random()
+  if (roll < 0.5) return null
+
+  const personalityIndex = Math.floor((roll - 0.5) * 2 * REPLY_PERSONALITY_INSTRUCTIONS.length)
+  return REPLY_PERSONALITY_INSTRUCTIONS[personalityIndex]
+}
+
 function formatCharacter(profile: CharacterPromptProfile): string {
   const details = [
     clean(profile.description) && `Description: ${clean(profile.description)}`,
@@ -70,8 +89,9 @@ function formatHints(hints: string[]): string {
 export function buildGuessSystemPrompt(input: Omit<BuildGuessPromptInput, 'canvasImageDataUrl'>): string {
   const characterName = clean(input.character.name) || 'the current character'
   const topic = clean(input.topic) || 'an unspecified topic'
+  const personalityInstruction = chooseReplyPersonalityInstruction()
 
-  return `You are ${characterName}. You are playing a fast, friendly game of Guess What I'm Drawing with the user and several other characters. Stay in character throughout the game.
+  const prompt = `You are ${characterName}. You are playing a fast, friendly game of Guess What I'm Drawing with the user and several other characters. Stay in character throughout the game.
 
 Your character card:
 ${formatCharacter(input.character)}
@@ -93,6 +113,10 @@ Rules for your response:
 - Express the guess in your character's voice, but do not add analysis, a list of possibilities, or commentary about the prompt.
 - If the drawing is rough or incomplete, still make the best guess you can from the visible evidence.
 - Never claim you can see details that are not present in the image.`
+
+  return personalityInstruction
+    ? `${prompt}\n\nExtra personality instruction for this reply:\n- ${personalityInstruction}`
+    : prompt
 }
 
 /** Builds the complete two-message request expected by the guessing flow. */
