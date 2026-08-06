@@ -5,11 +5,8 @@ import { GuesserBar } from './game/GuesserBar'
 import { BrushBar } from './game/BrushBar'
 import { GameSetupModal } from './game/GameSetupModal'
 import { RoundCompleteModal } from './game/RoundCompleteModal'
-import {
-  round as initialRound,
-  sampleIncorrectGuesses,
-  topicOptions,
-} from './game/mockData'
+import { sampleIncorrectGuesses } from './game/mockData'
+import { defaultTopic, initialRound, topicOptions } from './game/topics'
 import {
   applyGuess,
   CORRECT_GUESS_PROBABILITY,
@@ -125,7 +122,7 @@ function App() {
   const [showPrompt, setShowPrompt] = useState(true)
   const [game, dispatchGame] = useReducer(gameReducer, initialGameState)
   const [round, setRound] = useState(initialRound)
-  const [selectedTopic, setSelectedTopic] = useState<TopicOption>(topicOptions[0])
+  const [selectedTopic, setSelectedTopic] = useState<TopicOption>(defaultTopic)
   const [roundNumber, setRoundNumber] = useState(1)
   const [showSetup, setShowSetup] = useState(true)
   const [playerOptions, setPlayerOptions] = useState<Guesser[]>([])
@@ -214,7 +211,7 @@ function App() {
   }
 
   const startGame = (players: Guesser[], topic: TopicOption) => {
-    const firstPrompt = topic.prompts[0] ?? topic.prompt
+    const firstPrompt = topic.prompts[0]
     dispatchGame({ type: 'start', guessers: players, now: Date.now() })
     setSelectedTopic(topic)
     setRound({ topic: topic.topic, topicEmoji: topic.topicEmoji, prompt: firstPrompt })
@@ -244,7 +241,7 @@ function App() {
     setShowPrompt(true)
     dispatchGame({ type: 'reset' })
     setRound(initialRound)
-    setSelectedTopic(topicOptions[0])
+    setSelectedTopic(defaultTopic)
     setRoundNumber(1)
     setShowSetup(true)
   }

@@ -16,10 +16,12 @@ export interface Round {
   prompt: string
 }
 
-export interface TopicOption extends Round {
+export interface TopicOption {
   id: string
+  topic: string
+  topicEmoji: string
   description: string
   color: string
   /** Drawing prompts used for consecutive rounds in this topic. */
-  prompts: string[]
+  prompts: [string, ...string[]]
 }
