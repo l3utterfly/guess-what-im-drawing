@@ -41,6 +41,8 @@ function App() {
   // UI-only flourish: randomly pop guess bubbles above the guessers so the
   // chat-bubble feature is visible without a backend.
   useEffect(() => {
+    if (showSetup) return
+
     const timer = setInterval(() => {
       setGuessers((prev) =>
         prev.map((g) =>
@@ -53,7 +55,7 @@ function App() {
       )
     }, 1600)
     return () => clearInterval(timer)
-  }, [])
+  }, [showSetup])
 
   const sendHint = () => {
     if (!hint.trim()) return
@@ -67,6 +69,17 @@ function App() {
     setShowSetup(false)
   }
 
+  const restartGame = () => {
+    canvasRef.current?.clear()
+    setColor(COLORS[0])
+    setSize(SIZES[1])
+    setHint('')
+    setShowPrompt(true)
+    setGuessers(initialGuessers)
+    setRound(initialRound)
+    setShowSetup(true)
+  }
+
   return (
     <div className="app">
       <div className="phone" aria-hidden={showSetup || undefined}>
@@ -77,6 +90,15 @@ function App() {
             <span className="topic-emoji">{round.topicEmoji}</span>
             {round.topic}
           </span>
+          <button
+            type="button"
+            className="restart-btn"
+            onClick={restartGame}
+            aria-label="Restart game and return to setup"
+          >
+            <span className="restart-icon" aria-hidden="true">↻</span>
+            Restart
+          </button>
         </header>
 
         {/* Guessers with live chat bubbles */}
