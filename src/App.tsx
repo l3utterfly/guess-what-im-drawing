@@ -19,7 +19,7 @@ import {
   isGuessRequestAborted,
   requestCharacterGuess,
 } from './layla/guessing'
-import { buildGuessPrompt, logGuessPrompt } from './prompting'
+import { buildGuessPrompt, logGuessPrompt, logGuessResponse } from './prompting'
 
 const COLORS = [
   '#1e1e2e', // ink
@@ -275,6 +275,7 @@ function App() {
       setActiveGuesserId(speaker.id)
       void requestCharacterGuess(promptRequest, controller.signal)
         .then((guess) => {
+          logGuessResponse(speaker.name, guess)
           dispatchGame({
             type: 'speak',
             guesserId: speaker.id,

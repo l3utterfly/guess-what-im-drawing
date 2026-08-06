@@ -124,3 +124,10 @@ export function logGuessPrompt(characterName: string, request: GuessPromptReques
   console.log('Complete request:', request)
   console.groupEnd()
 }
+
+/** Logs the final visible completion returned for a character's turn. */
+export function logGuessResponse(characterName: string, response: string): void {
+  console.groupCollapsed(`[Guess What I'm Drawing] LLM response from ${characterName}`)
+  console.log(response)
+  console.groupEnd()
+}
