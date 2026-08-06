@@ -5,6 +5,8 @@ interface Props {
   roundNumber: number
   prompt: string
   placements: Guesser[]
+  guessers: Guesser[]
+  timedOut: boolean
   gameWinner: Guesser | null
   onNextRound: () => void
   onPlayAgain: () => void
@@ -17,14 +19,22 @@ export function RoundCompleteModal({
   roundNumber,
   prompt,
   placements,
+  guessers,
+  timedOut,
   gameWinner,
   onNextRound,
   onPlayAgain,
 }: Props) {
   const roundWinner = placements[0]
+  const results = [
+    ...placements,
+    ...guessers.filter((guesser) => !placements.some((placed) => placed.id === guesser.id)),
+  ]
   const title = gameWinner
     ? `${gameWinner.name} wins the game!`
-    : `${roundWinner?.name ?? 'Someone'} wins the round!`
+    : roundWinner
+      ? `${roundWinner.name} wins the round!`
+      : `Time's up!`
 
   return (
     <div className="round-complete-backdrop">
@@ -39,7 +49,11 @@ export function RoundCompleteModal({
             {gameWinner ? '🏆' : '🎉'}
           </span>
           <span className="round-complete-eyebrow">
-            {gameWinner ? 'Game complete' : `Round ${roundNumber} complete`}
+            {gameWinner
+              ? 'Game complete'
+              : timedOut
+                ? `Time's up · Round ${roundNumber}`
+                : `Round ${roundNumber} complete`}
           </span>
           <h1 id="round-complete-title">{title}</h1>
           <p>
@@ -49,31 +63,42 @@ export function RoundCompleteModal({
         </div>
 
         <ol className="round-standings" aria-label={`Round ${roundNumber} standings`}>
-          {placements.map((guesser, index) => (
-            <li
-              key={guesser.id}
-              className={`round-standing${index === 0 ? ' round-standing--winner' : ''}`}
-            >
-              <span className={`placement placement--${index + 1}`} aria-label={PLACEMENT_LABELS[index]}>
-                {PLACEMENT_MEDALS[index]}
-              </span>
-              <span
-                className="standing-avatar"
-                style={{ boxShadow: `0 0 0 3px ${guesser.color}` }}
-                aria-hidden="true"
+          {results.map((guesser) => {
+            const placementIndex = placements.findIndex((placed) => placed.id === guesser.id)
+            const guessedCorrectly = placementIndex !== -1
+            return (
+              <li
+                key={guesser.id}
+                className={`round-standing${placementIndex === 0 ? ' round-standing--winner' : ''}${guessedCorrectly ? '' : ' round-standing--no-guess'}`}
               >
-                {guesser.avatar}
-              </span>
-              <span className="standing-player">
-                <strong>{guesser.name}</strong>
-                <small>{PLACEMENT_LABELS[index]} place</small>
-              </span>
-              <span className="standing-points">
-                <strong>+{PLACEMENT_POINTS[index]}</strong>
-                <small>{guesser.score} total</small>
-              </span>
-            </li>
-          ))}
+                <span
+                  className={`placement${guessedCorrectly ? ` placement--${placementIndex + 1}` : ' placement--none'}`}
+                  aria-label={guessedCorrectly ? PLACEMENT_LABELS[placementIndex] : 'No correct guess'}
+                >
+                  {guessedCorrectly ? PLACEMENT_MEDALS[placementIndex] : '—'}
+                </span>
+                <span
+                  className="standing-avatar"
+                  style={{ boxShadow: `0 0 0 3px ${guesser.color}` }}
+                  aria-hidden="true"
+                >
+                  {guesser.avatar}
+                </span>
+                <span className="standing-player">
+                  <strong>{guesser.name}</strong>
+                  <small>
+                    {guessedCorrectly
+                      ? `${PLACEMENT_LABELS[placementIndex]} place`
+                      : 'No correct guess'}
+                  </small>
+                </span>
+                <span className="standing-points">
+                  <strong>+{guessedCorrectly ? PLACEMENT_POINTS[placementIndex] : 0}</strong>
+                  <small>{guesser.score} total</small>
+                </span>
+              </li>
+            )
+          })}
         </ol>
 
         <button

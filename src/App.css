@@ -46,13 +46,46 @@
   background: linear-gradient(120deg, var(--grad-1), var(--grad-2), var(--grad-3));
   box-shadow: 0 12px 24px -12px rgba(150, 90, 210, 0.7);
 }
-.topic-label {
+.round-timer {
   justify-self: start;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  min-width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(28, 20, 60, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.round-timer span {
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.9;
+  opacity: 0.78;
+}
+
+.round-timer time {
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.round-timer--urgent {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+  background: rgba(190, 35, 70, 0.72);
+  animation: timer-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes timer-pulse {
+  to { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.13); }
 }
 .topic-value {
   justify-self: center;
@@ -117,8 +150,13 @@
     padding-inline: 12px;
   }
 
-  .topic-label {
-    font-size: 10px;
+  .round-timer {
+    min-width: 58px;
+    padding-inline: 7px;
+  }
+
+  .round-timer time {
+    font-size: 15px;
   }
 
   .topic-value {
@@ -350,6 +388,10 @@
   box-shadow: 0 10px 24px -18px rgba(190, 120, 0, 0.7);
 }
 
+.round-standing--no-guess {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 .placement {
   width: 28px;
   height: 28px;
@@ -364,6 +406,12 @@
   font-size: 12px;
   color: #fff;
   background: #8d88a5;
+}
+
+.placement--none {
+  font-size: 14px;
+  color: #8d88a5;
+  background: #e5e2ef;
 }
 
 .standing-avatar {
@@ -405,6 +453,10 @@
 .standing-points strong {
   font-size: 16px;
   color: #e29400;
+}
+
+.round-standing--no-guess .standing-points strong {
+  color: #8d88a5;
 }
 
 .round-complete-button {

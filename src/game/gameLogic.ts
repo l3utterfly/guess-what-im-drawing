@@ -1,6 +1,7 @@
 import type { Guesser } from './types'
 
 export const WINNING_SCORE = 30
+export const ROUND_DURATION_SECONDS = 5 * 60
 export const CORRECT_GUESS_PROBABILITY = 0.3
 export const PLACEMENT_POINTS = [10, 5, 3, 2] as const
 
