@@ -101,7 +101,7 @@ function App() {
     game.guessers.length > 0 && game.correctGuesserIds.length === game.guessers.length
 
   // Local test simulation: one eligible character speaks each tick, with an
-  // independent 10% chance that their message contains the drawing prompt.
+  // independent 30% chance that their message contains the drawing prompt.
   useEffect(() => {
     if (showSetup || game.winnerId || roundComplete) return
 

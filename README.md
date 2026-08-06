@@ -21,7 +21,7 @@ A local React and TypeScript drawing game. Choose four characters and a topic, d
 
 ## Local guess simulation
 
-The current build simulates character speech so the game loop can be tested without connecting a model. One character who has not yet solved the current drawing speaks every 1.6 seconds. Each time a character speaks, there is an independent **10% probability** that their message contains the exact prompt; all other simulated messages are checked to ensure they do not accidentally contain it.
+The current build simulates character speech so the game loop can be tested without connecting a model. One character who has not yet solved the current drawing speaks every 1.6 seconds. Each time a character speaks, there is an independent **30% probability** that their message contains the exact prompt; all other simulated messages are checked to ensure they do not accidentally contain it.
 
 The scoring and matching rules live in `src/game/gameLogic.ts`. The simulation uses those same rules rather than awarding points directly.
 
