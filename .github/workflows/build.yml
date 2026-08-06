@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create distribution archive
+        working-directory: dist
+        run: zip -r ../guess-what-im-drawing.zip .
+
+      - name: Upload distribution archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: guess-what-im-drawing
+          path: guess-what-im-drawing.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${GITHUB_RUN_NUMBER}" \
+            guess-what-im-drawing.zip \
+            --target "${GITHUB_SHA}" \
+            --title "Build ${GITHUB_RUN_NUMBER}" \
+            --generate-notes
