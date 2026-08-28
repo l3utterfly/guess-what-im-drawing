@@ -9,7 +9,7 @@ race to shout out the answer.
 
 ## Gameplay
 
-https://github.com/user-attachments/assets/a4b32d19-ac12-4ed3-9112-0fe2dcb45563
+https://github.com/user-attachments/assets/f46370c9-ef0b-4b51-a40a-2385b86a9a9e
 
 If the video does not play inline, watch it here: [assets/gwid.mp4](./assets/gwid.mp4).
 
